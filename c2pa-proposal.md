@@ -49,7 +49,7 @@ In some cases, ML models execute in environments with poor or unknown security c
 In these cases, attestations can be added to demonstrate that a model or inference was trained/run
 in a secure environment.
 
-For concreteness, we assume an ML image recognition model with a valid C2PA manifest running in an SGX enclave, which then outputs metadata - information about any recognized objects - with an asset manifest that references the input image and teh model that produced the information anout the objects. The resulting manifest is signed by the claim creator (as normal), but also includes an attestation that indicates the code running in the enclave that performed the image recognition steps. Relying parties can use the manifest and attestation assertion to ensure that the image was processed by an authorized tool or model.
+For concreteness, we assume an ML image recognition model with a valid C2PA manifest running in an SGX enclave, which then outputs metadata - information about any recognized objects - with an asset manifest that references the input image and the model that produced the information about the objects. The resulting manifest is signed by the claim creator (as normal), but also includes an attestation that indicates the code running in the enclave that performed the image recognition steps. Relying parties can use the manifest and attestation assertion to ensure that the image was processed by an authorized tool or model.
 
 
 ## Specifics of Attestation
