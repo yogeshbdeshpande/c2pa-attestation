@@ -101,13 +101,11 @@ Specific Explicit "Key Attestation" Protocol is out of scope of C2PA Specificati
 
 ## Explicit Attestations
 
-Explicit Attestation allow a C2PA Claim Signer to undergo attestation with a local or remote
-Trust broker and introduce the attestation as part of C2PA Manifest.
-Compared to Implicit Attestation an Explicit Attestation offers additional guarantees, such as:
+Explicit attestations directly incorporate evidence of a platform's security configuration in the manifest. Explicit attestations can be "raw" evidence obtained from a local security component (e.g. an SGX or TPM quote) or can be an integrity verdict from a third-party trust broker such as those defined by IETF RATS or Google Play Integrity.
 
-1. An attestation aware C2PA Validator can get a more fine and granular information conveyed via attestation, example a specific version of firmware running on the device.
-2. A more rich set of information can be conveyed via explicit attestation. For example, a Device generating a C2PA Manifest has undergone a certain level of certification to comply with security standards.
-3. Explicit Attestation is extensible in a way that Attestation in future could be from a composite device, consisting of individual components (like camera sensor and Camera CPU hardware-firmware) combined together. This further augments the trust metrics.
+Explicit attestations encode the security posture of a device at the time of asset creation, whereas implicit attestations involve keys that were previously provisioned. Explicit attestations are required if the platform does not provide facilities to limit access to authorized claim generators running in authorized environments - a capability commonly called "sealing." Explicit attestations are generally easier to implement securely, because access-management of the implicit attestation keys is not required. However, if sealing-functions are available, both explicit and implicit attestations can provide similar security assurance of the underlying platform.
+
+In the current proposal, a manifest can contain more than one explicit attestation (for example, a TPM-based attestation of a "rich OS" and an SGX-enclave attestation of the claim generator), but only one implicit attestation signature (pertaining to claim signature key) is allowed.
 
 ### Design Considerations
 
@@ -117,8 +115,7 @@ certificate chain for the signing key is usually also included.
 2. Optionally, a countersignature from an RFC 3161-compliant time stamping service.
 
 Attestations, in the context of this document are also digital signatures. This section describes options for how the additional signatures can be added to the two that are already defined.
-This section provides a high level view of the design approach used, while a more detailed design for the chosen approach is given in 
-[detail design](#detail-design)
+This section provides a high level view of the design approach used, while a more detailed design for the chosen approach is given in [detail design](#detail-design)
 
 Throughout this section, when it is referred as "Attestation over - X", it implies, attestation is a signature over the hash of the serialization of X.
 
@@ -128,8 +125,7 @@ Subsequent section aims to provide simple steps which can mitigate the above men
 
 To achieve claim signature and attestation binding, an attestation over the serialized claim 
 is performed first and then the claim signature is perfomed over the attestation. This prevents
-an attestation being removed indepedently of the claim signature. Please note that the details of this design is described in 
-[detail design](#detail-design)
+an attestation being removed indepedently of the claim signature. Please note that the details of this design is described in [detail design](#detail-design)
 
 To prevent the claim signature being replaced, the attestation also binds the public key of the claim signer. This means that the validators can reject claim signature if the claim signature key specified in the attestation does not match the actual claim signature.
 
@@ -149,7 +145,7 @@ The approach taken in current design is to bind the attestation to the serailiza
 
 #### Embedding Attestation in a Manifest
 
-Attestations are like claim signatures (signed by Attestation signers) and could be encoded in a manifest similarly. However, there is also an additional security requirement that claim signers should also sign them to avoid the "strip and replace" problem as mentioned above.
+Attestations are similar to a signed claim (signed by Attestation signers) and could be encoded in a manifest similarly. However, there is also an additional security requirement that claim signers should also sign them to avoid the "strip and replace" problem as mentioned above.
 
 A simple approach could have been to encode Attestation Data ( either Attestation Result or Attestation Token), as a C2PA assertion and then generate the claim and sign the claim (as done in
 normal C2PA flow). However, this approach will not work, as there is a circular dependency:
