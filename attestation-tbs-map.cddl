@@ -1,11 +1,11 @@
-; Container for 
+; Container data structure for the information "attested"
 
 attestation-tbs-map = 
 {
-	“partial-claim-hash”: bstr,	;hash of partial claim
-	“alg”: tstr				;hash algorithm used in part-claim-hash
-	? “pub-key”: bstr,		;claim signer public key 
-	? “created”: time,		;UTC when this map was created
-	? “otherTbsInfo”: tstr		;parameters
-	? “otherTbsInfo2”: tstr		;parameters
+	“partial-claim-hash”: bstr,	    ;hash of partial claim
+	“alg”: tstr				        ;hash algorithm used in part-claim-hash
+	? “pub-key”: bstr,		        ;claim signer public key 
+	? “created”: time,		        ;UTC when this map was created
+	? “other-tbs-info”: tstr		;Optional parameters
+	? “other-tbs-info2”: tstr		;Optional parameters
 }

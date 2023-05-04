@@ -1,32 +1,25 @@
-## Design Considerations
-In this section we discuss the options for incorporating attestations into C2PA as well as the considerations that led to proposed design.  The sections that follow 
-contain the normative requirements for incorporating explicit and impicit attestations into a C2PA manifest.
+# Incorporating Explicit and Implicit Attestations into C2PA Manifests
+In this section we discuss the options for incorporating attestations into C2PA as well as the considerations that led to proposed design.  The sections that follow contain the normative requirements for incorporating explicit and impicit attestations into a C2PA manifest.
 
-### Explicit Attestation
+## Explicit Attestation
 
 The current C2PA trust model is built using two signatures:
 
-1)	A signature over a CBOR-serialized Claim.  The signature is encoded in the manifest, and the certificate chain for the signing key is usually also included.
-2)	Optionally, a countersignature from an RFC 3161-compliant time stamping service.
+1.	A signature over a CBOR-serialized Claim.  The signature is encoded in the manifest, and the certificate chain for the signing key is usually also included.
+1.	Optionally, a countersignature from an RFC 3161-compliant time stamping service.
 
-Attestations, in the context of this document, are also digital signatures.  This section describes options for how the additional signature can be added to the 
-two that are already defined.  Note that the discussion in this section is simplified: a more complete description follows. 
+Attestations, in the context of this document, are also digital signatures.  This section describes options for how the additional signature can be added to the two that are already defined.  Note that the discussion in this section is simplified: later sections present the complete design and requirements. 
 
 In the following, when we say *"attestation over X"* we mean that the attestation is a signature over the hash of the serialization of X.  
 
-The simplest option for adding an attestation would be to include it as a second countersignature over the serialized claim.  However, with this design, the 
-claim signature or the attestation can be independently removed and replaced.
-Whether these are troublesome attacks will depend on scenario (and the sophistication of the relying party) which makes a thorough security analysis difficult.
-However, the following proposal prevents the attestation and claim signatures being independently replaced with only modest complexity.  
+The simplest option for adding an attestation would be to include it as a second countersignature over the serialized claim.  However, with this design, the claim signature or the attestation can be independently removed and replaced. Whether these are troublesome attacks will depend on scenario (and the sophistication of the relying party) which makes a thorough security analysis difficult. However, the following proposal prevents the attestation and claim signatures being independently replaced with only modest complexity.  
 
-To achieve the claim-signature/attestation binding, an attestation over the serialized claim is performed first and then the claim signature is performed over the attestation. 
-This prevents the attestation being removed independently of the claim signature because any modification of the attestation will incalidate the claim signature  
+To achieve the claim-signature/attestation binding, an attestation over the serialized claim is performed first and then the claim signature is performed over the attestation.  This prevents the attestation being removed independently of the claim signature because any modification of the attestation will invalidate the claim signature  
 
-To prevent the claim signature being replaced, the attestation contains the public key of the subsequent claim signer.  This means that 
-validators can detect and reject a claim signature if the claim signature key specified in the attestation does not match the keys used for the actual claim signature.
+To prevent the claim signature being replaced, the attestation contains the public key of the subsequent claim signer.  This means that validators can detect and reject a claim signature if the claim signature key specified in the attestation does not match the keys used for the actual claim signature.
 
-The binding is illustrated in the following figure.  The attestation is bound to the claim so the claim cannot be edited without the attestation being invalidated.  
-Similarly, the claim signature is bound to the attestation and the claim: again, neither the attestation or the claim signature can be edited without invalidating the claim signature.  
+The binding is illustrated in the following figure.  The attestation is bound to the claim so the claim cannot be edited without the attestation being invalidated.  Similarly, the claim signature is bound to the attestation and the claim: again, neither the attestation or the claim signature can be edited without invalidating the claim signature.  
+
 Finally, the attestation contains the claim creator public key, so the claim signature cannot be replaced by a different claim signer without the attestation being invalidated. 
 
 ``` mermaid
@@ -35,16 +28,16 @@ graph RL;
     id2 --> id1;
     id1 --> id3;
 ```
-Figure X. Cryptographic dependencies for an asset, claim, attestation and claim, signature.  An arrow pointing from A to B means that B is cryptographically linked to A.
+*Figure X. Cryptographic dependencies for an Asset, Claim, Attestation and Claim, Signature.  An arrow pointing from A to B means that B cryptographically depends on A, so A is integrity protected.*
 
-## What is Attested?
+### What is Attested?
 Claim Signatures are calculated over the serialization of a claim, and the claim itself is cryptographically linked to assertions.  Two types of assertion are important here: assertions that contain metadata, and assertions that bind a claim to an asset with a hash or hashes of an asset or asset fragment.  By signing the Claim, the claim creator vouches for both the asset and the metadata.
 
 We desire similar bindings for the attestation signature: Most or all scenarios benefit from binding to the asset (e.g., for the Trusted Camera Application, “this image was captured by this program running on this device.”)  Some scenarios will benefit from binding to assertions (e.g., for a Trusted Camera Application “the GPS coordinates obtained from the radio when this image was captured” or for the ML scenario, “the following objects were recognized in the image.”)  However, note that attestation will *not* improve trust for all types of assertion data: for example, user-input is hearsay as far as the attesting application is concerned.
 
 The approach we have taken is that the attestation is over the serialization of the entire claim – i.e., the same data structure that the claim generator signs (with one exception, which we describe below.)  As noted above, not all assertions/metadata gain security benefit from attestation, but signing all assertions provides the most flexibility for future scenarios.    For such advanced use cases, we define a field that an attestation generator can use to indicate which assertions are “attested.” However, the use and interpretation of this field is beyond the current scope of C2PA.
 
-## Embedding an Explicit Attestation in a Manifest
+### Embedding an Explicit Attestation in a Manifest
 Attestations are like claim signatures and could be encoded in a manifest similarly.  However, we also have the additional security requirement noted earlier: i.e., that the claim-signer should also sign the attestation result.
 
 A natural way of encoding the attestation so that it is signed by the claim signer is to embed it as an assertion in the claim.  If we do this, then the attestation will naturally be signed in the same way as any other sort of assertion.  However, naïve attempts at implementing this will fail because we are introducing a circular dependency: the claim cannot be finalized before the attestation is created, but the attestation requires a finalized claim in order to calculate the claim hash.
@@ -64,7 +57,7 @@ Note that this architecture does demand that attestation-aware validators perfor
 
 Additional details are included in the normative parts of the draft specification below.
 
-## Multiple Explicit Attestations
+### Multiple Explicit Attestations
 This specification supports more than one attestation for a claim – for example, there may be one attestation for code running in an enclave, and a second for the overall platform (the “rich OS.”)
 
 If more than one attestation is required, then they are ordered, and each subsequent attestation is over the partial claim containing the prior attestations.  For example, if two attestations are required, the first attestation to be added will be over the partial claim with no attestation assertions.  The first attestation assertion is then added to the claim, and the second attestation will be over the claim with just the first attestation assertion included.  Of course, the second attestation assertion is then added, and the resulting finalized claim is signed by the claim generator.
@@ -90,6 +83,15 @@ The `attestation-tbs-map` (attestation to-be-signed map) is an envelope data str
 include::attestation-tbs-map.cddl
 ----
 
+| Field | Description |
+|-------|---------|
+| `partial-claim-hash` | The hash of a partial claim – i.e., a Claim that omits all or some of the Attestation Assertions. If the Claim contains a single Attestation Assertion, then this will be the hash of the CBOR-serialized claim omitting the Attestation Assertion – i.e., usually the final entry in the `assertions` array. If the claim contains *n* Attestation Assertions, then *n* Partial Claim hashes are defined.| 
+| `alg` | The hash algorithm  used to compute `partial-claim-hash`. |
+| `pub-key` | (Optional) The DER-encoded public key and algorithm of the claim signer (the Subject Public Key Info) as specified in RFC***. |
+| `created` | (Optional) The UTC time that the attestation was created. Can be used to reduce the risk that the same claim signer can later add a different claim signature. |
+| `other-tbs-info` | (Optional) Additional information that the Claim Creator wishes to associate with the attestation. |
+| `other-tbs-info-2` | (Optional) Additional information that the Claim Creator wishes to associate with the attestation. |
+
 
 #### Attestation Assertion Definition
 `attestation-info-map` is the envelope data structure that contains the attestation signature and related information.  It is used to embed an Attestation Assertion in the Assertion Store.
@@ -105,9 +107,51 @@ The `attestation-info-map` definition presented here can encode many types of at
 include::attestation-info-map.cddl
 ----
 
-#### Validating a Claim Containing Explicit Attestations
+| Field | Description |
+|-------|---------|
+| `att-type` | The attesation type. E.g. `c2pa.SGX`, See Appendix A for currently defined types. If non-standard attestations are encoded, the same convention for non-standard Assertion labels should be used.  E.g., `com.litware.custom-assertion` |
+| `attestation-tbs` | The `attestation-tbs-map` used when the assertion was obtained. | 
+| `attestation-results` | Binary encoding of the attestation measurement. |
+| `creation-time` | (Optional) UTC time when the attestation was created. |
+| `other-info` | (Optional) Any additional information that the Claim Creator wishes to associate wsith the attestation. |
+| `other-info-2` | (Optional) Any additional information that the Claim Creator wishes to associate wsith the attestation. |
+
+## Creating a Claim Containing One or More  Explicit Attestations 
+These are the detailed steps for creating an embedding an Attestation in a Claim. In the 1.3 version of the TCPA specification, these steps should be performed immediately prior to *“11.3.2.4. Signing a Claim”*.  Following these steps, the Claim should be signed as described int the main specification.
+
+1. Create a copy of the `claim-map` containing all non-attestation assertions.  
+1. Calculate the hash of the serialized (Partial) `claim-map` to form *hash(claim-map)*.
+1. Create an `attestation-tbs-map` data structure, including *hash(claim-map)*, the time, and (optionally) the public key of the Claim Signer.  Add any desired optional data to `attestation-tbs-map`.  CBOR-serialize and hash to form *hash(attestation-tbs-map)*.
+1. Use the appropriate platform service to obtain an attestation over *hash(attestation-tbs-map)* to form attestation *attest(hash(`attestation-tbs-map`))*
+1. Create a new `attestation-info-map`, then:
+   1. Set `att-type` to the type-selector for the attestation performed (Appendix A)
+   1. Set `attestation-tbs` to `attestation-tbs-map`
+   1. Set `attestation-results` to *attest(hash(attestation-tbs-map))*.  Defined types and encodings are specified in Appendix A.
+1. Create a JUMBF attestation container with label `c2pa.attestation` (or `c2pa.attestation_00n`, if this is not the first attestation added) containing the  `attestation-info-map` being prepared.
+1. Add the `attestation-info-map` to the Assertion Store.
+1. Add a new `hashed-uri-map` to the `assertions` array in `claim-map`, referencing the newly added Attestation Assertion. 
+1. If more than one attestation is required, go back to (2), but start with the current Partial `claim-map` containing the attestations calcuated thus far.
+
+At this point, the final claim has been created, and processing can continue according to *“11.3.2.4. Signing a Claim”* using the `claim-map` with all embedded Attestation Assertions.
+
+Note that this generic flow does not specify how an attestation is encoded into `attestation-results`.  This is scheme-specific and is described in Appendix A.
+
+## Validating a Claim Containing Explicit Attestations
+This section describes how Claims containing expolicit attestations should be validated. This section also describes how non-attestation aware validators should behave: this text will be replicated in the main C2PA technical specification.
+
+### Attestation Aware Validator
+PRELIMINARY: MORE DETAIL NEEDED.
+
 To perform attestation validation, first all Attestation Assertions are removed from the `assertions` array in the Claim.  The first Attestation Assertion is then checked against the hash of the CBOR-serialized Partial Claim with all Attestation Assertions removed.  If this succeeds, then the first Attestation Assertion is added back into the `assertions` array, the resulting Partial Claim is re-serialized, and the second Attestation Assertion is validated, and so on.  Note that for validation to succeed, the Attestation Assertions must be re-added in the same location in the assertions array.  This is simpler if they are last in the `assertions` array, which is the reason for this recommendation.  However, attestation validators should be able to process Attestation Assertions in any location in the array.
 
 Note that when an Attestation Assertion is removed, the Claim is serialized using normal CBOR rules.  For example, if a claim included two standard assertions and one Attestation Assertion, then the Partial Claim will contain an `assertions` array containing two elements. If a Partial Claim contains two standard assertions and two Attestation Assertions, then two Partial Claims are defined: one omitting just the last Attestation Assertion in the `attestations` array, and one omitting both Attestation Assertions.  Of course, the order of the Attestation Assertions must be preserved as the Partial Claim is created and validated.
 
-## Normative Requirements for Implicit Attestation
+### Non-Attestation Aware Validator
+(This text belongs in the main specification.)
+
+This text will be added to the current main-specification validation section. It ensures that assets including attestation assertions compliant with this specification are not rejected. 
+
+*“For validators that do not consume attestations, any assertion with label starting with `c2pa.attestation` should be ignored. Third party unrecognized attestations, including third-party attestation assertions, are ignored as specified elsewhere.”*
+
+# Implicit Attestation
+This section describes the design considerations and normative requirements for incoporating implicit attestations into the C2PA 

@@ -1,10 +1,10 @@
 ; Encoding of an attestation into an assertion
 
 attestation-info-map = {
-  "att-type":tstr,				  ; type of attestation 
-  “attestation-tbs”: attestation-tbs-map,  ; The attestation-tbs-map
-  "attestationResults": bstr, 		  ; attestation result/signature
-  ?“otherInfo”: bstr			  	  ; other info
-  ?“otherInfo2”: bstr			  	  ; other info
-  ?“created”: time 				  ; attestation creation time
+  "att-type":tstr,				            ; type of attestation 
+  “attestation-tbs”: attestation-tbs-map,   ; The attestation-tbs-map
+  "attestation-results": bstr, 		        ; attestation result/signature
+  ?“other-info”: bstr			  	        ; other info
+  ?“other-info2”: bstr			  	        ; other info
+  ?“created”: time 				            ; attestation creation time
 }
