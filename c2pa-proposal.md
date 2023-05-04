@@ -98,3 +98,100 @@ The only requirement for the Implicit Attestation to work within C2PA Eco-system
     4) If the signing key is revoked for any reason (e.g. due to expiry), then a new key to be provisioned, has to undergo the same "Explicit Attestation Protocol".
 
 Specific Explicit "Key Attestation" Protocol is out of scope of C2PA Specification.
+
+## Explicit Attestations
+
+Explicit attestations directly incorporate evidence of a platform's security configuration in the manifest. Explicit attestations can be "raw" evidence obtained from a local security component (e.g. an SGX or TPM quote) or can be an integrity verdict from a third-party trust broker such as those defined by IETF RATS or Google Play Integrity.
+
+Explicit attestations encode the security posture of a device at the time of asset creation, whereas implicit attestations involve keys that were previously provisioned. Explicit attestations are required if the platform does not provide facilities to limit access to authorized claim generators running in authorized environments - a capability commonly called "sealing." Explicit attestations are generally easier to implement securely, because access-management of the implicit attestation keys is not required. However, if sealing-functions are available, both explicit and implicit attestations can provide similar security assurance of the underlying platform.
+
+In the current proposal, a manifest can contain more than one explicit attestation (for example, a TPM-based attestation of a "rich OS" and an SGX-enclave attestation of the claim generator), but only one implicit attestation signature (pertaining to claim signature key) is allowed.
+
+### Design Considerations
+
+The current C2PA trust model is built using two signatures:
+1. A signature over a CBOR-serailized Claim. The signature is encoded in the manifest, and the 
+certificate chain for the signing key is usually also included.
+2. Optionally, a countersignature from an RFC 3161-compliant time stamping service.
+
+Attestations, in the context of this document are also digital signatures. This section describes options for how the additional signatures can be added to the two that are already defined.
+This section provides a high level view of the design approach used, while a more detailed design for the chosen approach is given in [detail design](#detail-design)
+
+Throughout this section, when it is referred as "Attestation over - X", it implies, attestation is a signature over the hash of the serialization of X.
+
+The simplest option for adding attestation specific data would be to include it as a second counter signature over a serialized claim. However with this design, the claim signature or attestation can be independently removed and replaced. Whether this type of attack can take place depends on the scenario and sophistication of the relying party, however it cannot be simply ignored.
+
+Subsequent section aims to provide simple steps which can mitigate the above mentioned threat.
+
+To achieve claim signature and attestation binding, an attestation over the serialized claim 
+is performed first and then the claim signature is perfomed over the attestation. This prevents
+an attestation being removed indepedently of the claim signature. Please note that the details of this design is described in [detail design](#detail-design)
+
+To prevent the claim signature being replaced, the attestation also binds the public key of the claim signer. This means that the validators can reject claim signature if the claim signature key specified in the attestation does not match the actual claim signature.
+
+### Detail Design
+
+This section describes in more detail, how an attestation is created and encoded in a manifest.
+
+#### Linking Attestation Data to C2PA
+
+Current C2PA design establishes cryptographic linkage between asset, assertions, claim and its claim signature. Claim Signatures are calculated over the serialization of a claim, and the claim itself is cryptographically linked to assertions. Two types of assertion are important, assertions that contain the metadata and assertions that bind a claim to an asset with a hash or hashes of an asset or asset fragment. By signing the Claim, the claim creator vouches for both asset and the metadata.
+
+The design proposed in this section introduces similar bindings/cryptographic linkages for the attestation signatures [Glossary](#glossary). Majority of scenarios benefit binding to the asset (e.g
+for a Trusted Camera Application *"this image was captured by this program running on this device*"
+Some scenarios benefit from binding to an Assertion, e.g. *"the GPS coordinates obtained from the radio when this image was captured"* or for the ML scenario, *"the following objects were recognized in the image"*)
+
+The approach taken in current design is to bind the attestation to the serailization of the entire claim, i.e. the same data structure that the claim generator signs (with one exception which is described below). Not all assertions/metadata gain security benefit from attestation (as opposed to simple claim signature), but signing all assertions provide the most flexibility for future scenarios. TODO: Check this sentence for relevance: For such advanced use cases, we introduce a field that an attestation generator can use to indicate, which assertions are "attested".
+
+#### Embedding Attestation in a Manifest
+
+Attestations are similar to a signed claim (signed by Attestation signers) and could be encoded in a manifest similarly. However, there is also an additional security requirement that claim signers should also sign them to avoid the "strip and replace" problem as mentioned above.
+
+A simple approach could have been to encode Attestation Data ( either Attestation Result or Attestation Token), as a C2PA assertion and then generate the claim and sign the claim (as done in
+normal C2PA flow). However, this approach will not work, as there is a circular dependency:
+one cannot generate attestation without complete claim refer [linking c2pa](#linking-attestation-data-to-c2pa) and claim cannot
+be finalized before the attestation assertion is created.
+
+The design breaks the circular dependency by specifying that:
+1.  Attestation Data is created using the hash of serialized claim *but ommiting the attestation assertion (which has not been created yet)*. This is known as *partial claim*
+2. Once the Attestation has been created, it is embedded in the manifest as "attestation assertion"
+and its associated claim, identical to any other assertion and subsequently be signed by "claim signature" as per the normal C2PA sequence. 
+3. This approach is fully backwards compatible, as explained in section [compatibility](#compatibility-with-current-specification)
+
+A simplified logical flow for creating "attestation assertion" is given below
+
+@Akshay TODO Insert .png for Manifest Creation 
+
+#### Attestation Data Structures
+
+### Validating flow for a Attestation Aware C2PA Validator
+
+
+
+### Security Considerations
+
+The security properties of Attestation within C2PA is similar to normal C2PA trust model.
+Just as non attestation claim signature can be stripped and replaced, so can the combined attestation/claim signature pair. However, neither can be replaced independently.
+
+
+## Compatibility with current specification
+The proposed design is fully backwards compatible, as explained below:
+
+* Normal claim creation and claim validation is unaffected.
+* An Attestation enhanced claim can be processed by an *attestation-unaware* C2PA Validator,
+without changes. The attestation assertion can be treated as any other third party assertion
+or unrecognized assertion.
+
+
+# GLOSSARY
+
+Following terms are extensively used in this document.
+
+* Claim Signature: The definition is the same as documented in C2PA core specification.
+
+* Attestation Signature: A signature generated over an Attestation Statement, produced either by:
+(a) Remote Attestation Verifier when Attestation Statement is an Attestation result generated from a remote verifier (b) An application or underlying platform of a C2PA capturing device, when the Attestation data is generated locally containing attestation information (known as Attestation token in RATS world)
+
+* Attestation over - X.
+
+* 
