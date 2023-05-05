@@ -31,11 +31,11 @@ graph RL;
 *Figure X. Cryptographic dependencies for an Asset, Claim, Attestation and Claim, Signature.  An arrow pointing from A to B means that B cryptographically depends on A, so A is integrity protected.*
 
 ### What is Attested?
-Claim Signatures are calculated over the serialization of a claim, and the claim itself is cryptographically linked to assertions.  Two types of assertion are important here: assertions that contain metadata, and assertions that bind a claim to an asset with a hash or hashes of an asset or asset fragment.  By signing the Claim, the Claim Creator vouches for both the asset and the metadata.
+Claim Signatures are calculated over the serialization of a claim, and the claim itself is cryptographically linked to its embedded assertions.  Two types of assertion are important here: assertions that contain metadata, and assertions that bind a Claim to an Asset with a hash or hashes of an asset or asset fragment.  By signing the Claim, the Claim Creator vouches for both the asset (via the binding assertion) and the metadata.
 
-We desire similar bindings for the implicit attestation signature: Most or all scenarios benefit from binding to the asset (e.g., for the Trusted Camera Application, *“this image was captured by this program running on this device.”*)  Some scenarios will benefit from binding to assertions (e.g., for a Trusted Camera Application *“the GPS coordinates obtained from the radio when this image was captured”* or for the ML scenario, *“the following objects were recognized in the image.”*)  However, note that attestation will *not* improve trust for all types of assertion data: for example, user-input is hearsay as far as the attesting application is concerned.
+We desire similar bindings for the explicit attestation signature. Most or all scenarios benefit from binding to the asset (e.g., for the Trusted Camera Application, *“this image was captured by this program running on this device.”*)  Some scenarios will benefit from binding to assertions (e.g., for a Trusted Camera Application *“the GPS coordinates obtained from the radio when this image was captured”* or for the ML scenario, *“the following objects were recognized in the image.”*)  However, note that attestation will *not* improve trust for all types of assertion data: for example, user-input is hearsay as far as the attesting application is concerned.   
 
-The approach we have taken is that the attestation is over the serialization of the entire Claim – i.e., the same data structure that the Claim Generator signs (with one exception, which we describe below.)  As noted above, not all assertions/metadata gain security benefit from attestation, but signing all assertions provides the most flexibility for future scenarios. For future advanced use cases, we define a field that an attestation generator can use to indicate which assertions are “attested.” However, the use and interpretation of this field is beyond the current scope of C2PA.
+The approach we have taken is that the attestation is over the serialization of the entire Claim – i.e., the same data structure that the Claim Generator signs (with one exception, which we describe below.)  As noted above, not all assertions/metadata gain security benefit from the attestation, but signing all assertions provides the most flexibility for future scenarios. For future advanced use cases, we define a field that an attestation generator can use to indicate which assertions are meaninfully “attested.” However, the use and interpretation of this field is beyond the current scope of C2PA.
 
 ### Embedding an Explicit Attestation in a Manifest
 Explicit attestations are similar to Claim Signatures and could be encoded in a manifest similarly.  However, we also have the additional security requirement noted earlier: i.e., that the Claim Signer should also sign the attestation result.
@@ -175,9 +175,17 @@ This specification provides guidance on the issuance and lifetime management of 
 ## Issuing / Certifying Keys for Implicit Attestation 
 Devices that support attestation provide cryptographic building blocks that can be used in protocols to prove the identity of the device and running software to relying parties. One common cryptographic primitive is called quote. Quotes are typically digital signatures over user-supplied data and platform/quote-engine-supplied data that describes the running program and the environment/TCB in which it is executing.
 
-Quotes (and related primitives) can be used to create Explicit Attestations (section *) but can also be used in a protocol to provision or certify a claim-signing key.  A common building-block is that an application creates a keypair and “Quotes” the resulting public key to a trusted service.  The service checks that the device is known or in good-standing, and that the program measurements conveyed in the quote are in policy.  If the checks succeed, the service creates a certificate for the implicit attestation public key. 
+Quotes (and related primitives) can be used to create Explicit Attestations (section *) but can also be used in a protocol to provision or certify a Claim Signing key.  A common building-block is that an application creates a keypair and “Quotes” the resulting public key to a trusted service.  The service checks that the device is known or in good-standing, and that the program measurements conveyed in the quote are in policy.  If the checks succeed, the service creates a certificate for the newly created implicit attestation public key.  
 
-However, implementers should consult platform documentation for recommended provisioning protocols.
+Once provisioned, the Claim Signer uses this key and certificate in exactly the same way that other (non-implicit-attestation) Claim Signing keys are used.
+
+Note that this description is simplfied: implementers should consult platform documentation for recommended provisioning protocols for implicit attestation keys.
+
+## IACS-Key Certificates
+
+The certificate for the implicit attestation claim signing key should comply with the requirements in the main C2PA specification.  Optionally, the certificate may contain additional fields that convey additional information about the application or security posture of the device to which it was provisionied.
+
+IACS-keys and cerfificates are associated with devices, as opposed to people or organizations.  Claim Creators may use the `CreativeWork` assertion to encode a person or organization. 
 
 ## Protecting Implicit Attestation Signing Keys 
 Most platforms that provide attestation capabilities also provide security primitives to allow a system to protect stored keys and other data so that the data is only accessible to the attesting application, or other applications explicitly authorized by the attesting application.  This operation is commonly called sealing.
@@ -186,11 +194,22 @@ Implementers should consult platform documentation for usage.
 
 ## Timeline for Provisioning and Use of Implicit Attestation Signing Keys
 
-I AM HERE
+Summarizing the previous sections in the form of a timeline, the following steps are required when provisioning and using a key for implicit attestation.
 
-Implicit Attestation is performed with multiple processes over the lifecycle of a platform that produces claims. 
- 
-At manufacturing time, the device must be provisioned for secure boot, with an OS that can be attested, and a trusted execution environment enabled.  
-When the application that does implicit attestation is installed, the device and the application are attested to assure that the platform is secure and application has not been tampered with before the Attestation Signing Key is provisioned in the device.  
-When the application is launched the platform and application can be attested again to assure that neither has been tampered with since installation.  
-An attestation can also be performed when the asset manifest is created, assuring that the platform, application, and the claim signature all are trustworthy at the time of signing.  
+1. It is assumed that devices are provisioned with a platform key and certificate (or a key and a pre-established trust relationship with a server.) This is usually performed during manufacture.
+1. At some point in the life of the device, the C2PA-compliant Claim Creation application is installed.
+1. During installation (or later), the Claim Creator will interact with a trusted service to create a certified key for signing claims.  The Claim Creator uses Quotes (or similar) to prove that it is an authorized application running on a trusted device. The Quote directly or indirectly uses the platform key in (1).
+1. The certified IACS-key and certificate can be used immediately to sign Claims.
+1. If the platform provides suitable *sealing* facilities, the IACS-private key can be persisted in such a way that only the authorized application can retrieve it.
+   1. If this is the case, then the IACS-key can be stored and protected so that the application be closed and restarted and use the same key
+   1. If this is not the case, then the IACS-key should not be persisted: instead, the application should follow stel (3) to obtain a new IACS-key on each startup.
+
+## Claim Creation with Implicit Attestation
+
+Claim Creators use IACS-keys to sign Claims in exactly the same way as documented in the main C2PA specification for keys associated with organizations or people.
+
+## Claim Validation of Manifests Using Implicit Attestation
+
+Claims signed with IACS-keys are validated identically to validation of manifests signed with keys associated with organizations or people.
+
+We expect that IACS-keys will employ specialized CAs and Trust Roots, although this is not required.
