@@ -48,23 +48,27 @@ We choose to break this dependency by specifying that the attestation is created
 
 This architecture is attractive because normal claim creation and claim validation are unaffected.  It is also attractive because an attestation-enhanced claim can be processed by an attestation-unaware validator without changes (the attestation assertion can be treated like any other third-party or unrecognized assertion.)
 
-The (simplified) logical flow for creating a manifest with and without an attestation is illustrated in Figure 1. 
+The (simplified) logical flow for creating a manifest with and without an attestation is illustrated in the following figure. 
 
 ``` mermaid
 graph LR;
-    subgraph <b>Standard Flow &#40No Attestations&#41</b>
+    subgraph NOSHADED[<b>Standard Flow &#40No Attestations&#41</b>]
     direction LR 
     id1(Asset) --> id2(<b>Assertion Store</b><p align=left></p>box-map<p>CreativeWork) --> id3(<b>Claim</b><p>assertions) --> id4(<b>Claim Signature</b>)
     end
+
+    style NOSHADED fill:#ffffff,stroke:#333,stroke-width:1px
 ```
 
 ``` mermaid
 
 graph LR;
+    style SHADED fill:#78FE89,stroke:#333,stroke-width:1px NOSHADED fill:#FFFFFF 
+
     id4 --> id10;
     id13 --> id30;
 
-    subgraph Partial Claim Creation and First Attestation  
+    subgraph <b>Partial Claim Creation and First Attestation</b>
     id1(Asset) --> id2(<b>Assertion Store</b><p></p>box-map<p>CreativeWork) --> id3(<b>Partial Claim<b><p>assertions) --> id4(<b>Attestation</b>)
     end
 
@@ -76,12 +80,12 @@ graph LR;
     id30(Claim Signature)
     end
 
-    style SHADED fill:#78FE89,stroke:#333,stroke-width:4px
+    
 ```
 
-*Figure XX: : Simplified steps for creating a C2PA manifest and a manifest containing an attestation assertion.*
-*In the no-attestation case, assertions are created and boxed in the assertion store.  A Claim is then prepared, with the assertions array set to the location and hash of the referenced assertions. The Claim is then serialized, hashed, and signed by the Claim Creator.  The Assertion Store, Claim, and Claim Signature are then packaged as a manifest (not shown.)*
-*To support attestations, the additional steps in the shaded box are required. As before, an Assertion Store is populated with the desired assertions, but we call it a Partial Assertion Store because one additional assertion will be added before the Claim is finalized.  The Partial Claim is then serialized and claim hash is then attested using the appropriate platform attestation service. Next, the attestation is packaged as an assertion and added to the Partial Assertion Store to create the finalized Assertion Store.  Finally, the serialized-Claim (with the embedded attestation assertion) is signed by the Claim Creator.*
+> Simplified steps for creating a C2PA manifest and a manifest containing an attestation assertion.
+In the no-attestation case, assertions are created and boxed in the assertion store.  A Claim is then prepared, with the assertions array set to the location and hash of the referenced assertions. The Claim is then serialized, hashed, and signed by the Claim Creator.  The Assertion Store, Claim, and Claim Signature are then packaged as a manifest (not shown.)
+To support attestations, the additional steps in the shaded box are required. As before, an Assertion Store is populated with the desired assertions, but we call it a Partial Assertion Store because one additional assertion will be added before the Claim is finalized.  The Partial Claim is then serialized and claim hash is then attested using the appropriate platform attestation service. Next, the attestation is packaged as an assertion and added to the Partial Assertion Store to create the finalized Assertion Store.  Finally, the serialized-Claim (with the embedded attestation assertion) is signed by the Claim Creator.
 
 Note that this architecture *does* demand that attestation-aware Validators perform additional steps: Specifically, Validators must edit the Claim to remove any attestation assertions, and then re-serialize the resulting Partial Claim to validate the binding in the attestation assertion.  We consider this tradeoff to be acceptable: the rewriting cost is borne by the creators and consumers of attestation, but the creation and validation workflow for non-attestation-aware entities is unchanged.
 
