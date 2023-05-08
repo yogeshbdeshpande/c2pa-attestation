@@ -48,9 +48,36 @@ We choose to break this dependency by specifying that the attestation is created
 
 This architecture is attractive because normal claim creation and claim validation are unaffected.  It is also attractive because an attestation-enhanced claim can be processed by an attestation-unaware validator without changes (the attestation assertion can be treated like any other third-party or unrecognized assertion.)
 
-The (simplified) logical flow for creating a manifest with an attestation is illustrated in Figure 1. 
+The (simplified) logical flow for creating a manifest with and without an attestation is illustrated in Figure 1. 
 
->> Add Figure here
+``` mermaid
+graph LR;
+    subgraph <b>Standard Flow &#40No Attestations&#41</b>
+    direction LR 
+    id1(Asset) --> id2(<b>Assertion Store</b><p align=left></p>box-map<p>CreativeWork) --> id3(<b>Claim</b><p>assertions) --> id4(<b>Claim Signature</b>)
+    end
+```
+
+``` mermaid
+
+graph LR;
+    id4 --> id10;
+    id13 --> id30;
+
+    subgraph Partial Claim Creation and First Attestation  
+    id1(Asset) --> id2(<b>Assertion Store</b><p></p>box-map<p>CreativeWork) --> id3(<b>Partial Claim<b><p>assertions) --> id4(<b>Attestation</b>)
+    end
+
+    subgraph SHADED[Final Claim and Claim Signature Creation]
+    id10(<b>Assertion Store</b><p>box-map<p>CreativeWork<p>attestation) --> id11(<b>Assertion Store</b><p></p>box-map<p>CreativeWork<p>attestation-info-map) --> id12(<b>Claim</b><p>assertions) --> id13(<b>Claim Signature</b>)
+    end
+
+    subgraph <b>Claim Signature Creation</b>  
+    id30(Claim Signature)
+    end
+
+    style SHADED fill:#78FE89,stroke:#333,stroke-width:4px
+```
 
 *Figure XX: : Simplified steps for creating a C2PA manifest and a manifest containing an attestation assertion.*
 *In the no-attestation case, assertions are created and boxed in the assertion store.  A Claim is then prepared, with the assertions array set to the location and hash of the referenced assertions. The Claim is then serialized, hashed, and signed by the Claim Creator.  The Assertion Store, Claim, and Claim Signature are then packaged as a manifest (not shown.)*
@@ -103,9 +130,9 @@ During Claim creation, the attestations are calculated then embedded one at a ti
 
 If a second attestation is required, the Partial Claim with the first Attestation Assertion included is serialized and the second attestation is performed.  The second Attestation Assertion is encoded in a `attestation-info-map` then added to the end of the `assertions` array to form the final Claim, which is then signed by the Claim Creator.  
 
-This specification does not restrict the location in the `assertions` array where the Attestation Assertions are added,[^1] although, as previously noted, incorporating them last in the array is preferred). However, the order in the `assertions` array is important when more than one Attestation Assertion is incorporated.  In this case, higher-index Attestation Assertions are performed after lower-index entries.
+This specification does not restrict the location in the `assertions` array where the Attestation Assertions are added,[^1] although, as previously noted, incorporating them last in the array is preferred. However, the order in the `assertions` array is important when more than one Attestation Assertion is incorporated.  In this case, higher-index Attestation Assertions are performed after lower-index entries.
 
-[^1]: We do not demand that attestation assertions appear last because doing so would limit the future evolution of the C2PA standard.
+[^1]: We do not demand that attestation assertions appear last in the attestation array, because doing so would limit the future evolution of the C2PA standard.
 
 #### Attestation "To-Be-Signed" Definition
 The `attestation-tbs-map` (attestation to-be-signed map) is an envelope data structure for the information that is to be serialized, hashed, and signed by the attestation machinery. The most important field in `attestation-tbs-map` is the `partial-claim-hash`: essentially the hash of the asset and its referenced assertions.
@@ -117,9 +144,9 @@ include::attestation-tbs-map.cddl
 
 | Field | Description |
 |-------|---------|
-| `partial-claim-hash` | The hash of a partial claim – i.e., a Claim that omits all or some of the Attestation Assertions. If the Claim contains a single Attestation Assertion, then this will be the hash of the CBOR-serialized claim omitting the Attestation Assertion – i.e., usually the final entry in the `assertions` array. If the claim contains *n* Attestation Assertions, then *n* Partial Claim hashes are defined.| 
+| `partial-claim-hash` | The hash of a Partial Claim – i.e., a Claim that omits all or some of the Attestation Assertions. If the Claim contains a single Attestation Assertion, then this will be the hash of the CBOR-serialized Claim omitting the Attestation Assertion – i.e., usually the final entry in the `assertions` array. If the claim contains *n* Attestation Assertions, then *n* Partial Claim hashes are defined, with zero to *n-1* embedded Attestation Assertions.| 
 | `alg` | The hash algorithm  used to compute `partial-claim-hash`. |
-| `pub-key` | (Optional) The DER-encoded public key and algorithm of the claim signer (the Subject Public Key Info) as specified in RFC***. |
+| `pub-key` | (Optional) The DER-encoded public key and algorithm of the claim signer (the Subject Public Key as used in the X.509 certificate) as specified in RFC-5480 and RFC-8017. |
 | `created` | (Optional) The UTC time that the attestation was created. Can be used to reduce the risk that the same claim signer can later add a different claim signature. |
 | `other-tbs-info` | (Optional) Additional information that the Claim Creator wishes to associate with the attestation. |
 | `other-tbs-info-2` | (Optional) Additional information that the Claim Creator wishes to associate with the attestation. |
@@ -144,8 +171,9 @@ include::attestation-info-map.cddl
 | `att-type` | The attesation type. E.g. `c2pa.SGX`, See Appendix A for currently defined types. If non-standard attestations are encoded, the same convention for non-standard Assertion labels should be used.  E.g., `com.litware.custom-assertion` |
 | `attestation-tbs` | The `attestation-tbs-map` used when the assertion was obtained. | 
 | `attestation-results` | Binary encoding of the attestation measurement. |
+| `certificates` | (Optional) string version of the PEM encoded certificate of certificate chain for the attesting key. |
 | `creation-time` | (Optional) UTC time when the attestation was created. |
-| `other-info` | (Optional) Any additional information that the Claim Creator wishes to associate wsith the attestation. |
+| `other-info` | (Optional) Any additional information that the Claim Creator wishes to associate with the attestation. |
 | `other-info-2` | (Optional) Any additional information that the Claim Creator wishes to associate wsith the attestation. |
 
 ## Creating a Claim Containing One or More  Explicit Attestations 
