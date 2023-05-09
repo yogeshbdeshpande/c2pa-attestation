@@ -1,4 +1,4 @@
-# Appendix A - Attestation Encoding Rules for Explicit Attestation
+# Appendix A - Defined Attestation Schemes and Encodings
 
 This appendix describes the currently defined attestation schemes, and how the attestation information is incorporated into a C2PA manifest.
 
